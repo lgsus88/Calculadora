@@ -1,0 +1,258 @@
+import tkinter as tk
+from tkinter import messagebox, Toplevel, Label
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Lista para almacenar las expresiones matemáticas
+expresiones = []
+# Lista para almacenar las expresiones que no se pueden graficar
+expresiones_erroneas = []
+
+# Colores predefinidos para las funciones
+colores = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+
+# Estado de la escala en el plano cartesiano (Reales o Radianes)
+escala_radianes = False
+
+# Función para actualizar el texto de la entrada cuando se presionan los botones
+def actualizar_entrada(valor):
+    entrada_texto.set(entrada_texto.get() + valor)
+
+# Función para evaluar expresiones matemáticas
+def evaluar_expresion(expresion, x_values):
+    try:
+        # Reemplazar ^ con ** y manejar funciones trigonométricas
+        expresion = expresion.replace('^', '**')
+        expresion = expresion.replace('sin', 'np.sin')
+        expresion = expresion.replace('cos', 'np.cos')
+        expresion = expresion.replace('tan', 'np.tan')
+        expresion = expresion.replace('sqrt', 'np.sqrt')
+        expresion = expresion.replace('log', 'np.log')
+        
+        # Evaluar la expresión
+        y_values = eval(expresion, {"__builtins__": None, "x": x_values, "np": np})
+        return y_values
+    except Exception as e:
+        return None
+
+# Función para graficar expresiones implícitas
+def graficar_ecuacion_implicita(expresion):
+    try:
+        # Configurar una malla de valores x e y
+        x = np.linspace(-2 * np.pi, 2 * np.pi, 400)
+        X, Y = np.meshgrid(x, x)
+        
+        # Evaluar la expresión implícita en la malla
+        Z = eval(expresion.replace('^', '**').replace('x', 'X').replace('y', 'Y'))
+        
+        # Graficar el contorno donde Z = 0
+        ax.contour(X, Y, Z, [0], colors=colores[len(expresiones) % len(colores)])
+    except Exception as e:
+        messagebox.showerror("Error al graficar", f"No se pudo graficar la expresión '{expresion}'.\n" + str(e))
+
+# Función para agregar la expresión matemática a la lista y graficar
+def agregar_funcion(event=None):
+    expresion = entrada_texto.get()
+    if expresion:
+        try:
+            # Verificar si es una ecuación implícita o explícita
+            if "=" in expresion:
+                graficar_ecuacion_implicita(expresion)
+            else:
+                # Evaluar la expresión para verificar si es válida
+                x_test = np.linspace(-2 * np.pi, 2 * np.pi, 10)
+                evaluar_expresion(expresion, x_test)
+                
+                # Enumerar la expresión
+                expresion_enumerada = f"f{len(expresiones) + 1}(x) = {expresion}"
+                expresiones.append(expresion_enumerada)
+                entrada_texto.set("")
+                actualizar_lista_funciones()
+                graficar()
+        except Exception as e:
+            # Si no se puede evaluar, agregar a expresiones_erroneas
+            expresiones_erroneas.append(expresion)
+            entrada_texto.set("")
+            messagebox.showerror("Error al agregar función", f"No se pudo agregar la expresión '{expresion}'.\n" + str(e))
+
+# Función para evaluar y graficar todas las funciones
+def graficar():
+    ax.clear()
+    for idx, expresion in enumerate(expresiones):
+        try:
+            # Obtener solo la expresión matemática
+            _, expresion_evaluada = expresion.split(" = ")
+            
+            # Generar datos para x
+            x = np.linspace(-2 * np.pi, 2 * np.pi, 400) if escala_radianes else np.linspace(-10, 10, 400)
+            y = evaluar_expresion(expresion_evaluada, x)
+
+            # Graficar con un color distinto
+            color = colores[idx % len(colores)]
+            ax.plot(x, y, label=expresion, color=color)
+        except Exception as e:
+            messagebox.showerror("Error al graficar", f"No se pudo graficar la expresión '{expresion}'.\n" + str(e))
+
+    ax.set_title('Plano Cartesiano')
+    ax.axhline(0, color='black', linewidth=0.5)
+    ax.axvline(0, color='black', linewidth=0.5)
+    ax.grid(True, which='both')
+
+    # Cambiar las etiquetas de los ejes si la escala es en radianes
+    if escala_radianes:
+        ax.set_xticks([-2*np.pi, -np.pi, 0, np.pi, 2*np.pi])
+        ax.set_xticklabels([r'$-2\pi$', r'$-\pi$', r'$0$', r'$\pi$', r'$2\pi$'])
+    else:
+        ax.set_xticks(np.arange(-10, 11, 1))
+    ax.legend()
+
+    canvas.draw()
+
+# Función para limpiar la entrada y el gráfico
+def limpiar():
+    entrada_texto.set("")
+    expresiones.clear()
+    expresiones_erroneas.clear()
+    actualizar_lista_funciones()
+    ax.clear()
+    canvas.draw()
+
+# Funciones de zoom in y zoom out
+def zoom_in():
+    scale(1.5)
+
+def zoom_out():
+    scale(0.5)
+
+def scale(factor):
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    
+    # Calcular el rango nuevo basado en el factor de escala
+    x_center = (xlim[0] + xlim[1]) / 2
+    y_center = (ylim[0] + ylim[1]) / 2
+    x_range = (xlim[1] - xlim[0]) / 2
+    y_range = (ylim[1] - ylim[0]) / 2
+    
+    # Ajustar el rango de los ejes, asegurando que no se vuelva excesivo
+    new_x_range = x_range * factor
+    new_y_range = y_range * factor
+    min_range = 0.1  # Definir un rango mínimo para evitar que el gráfico se vuelva demasiado grande
+    
+    new_x_range = max(new_x_range, min_range)
+    new_y_range = max(new_y_range, min_range)
+    
+    ax.set_xlim([x_center - new_x_range, x_center + new_x_range])
+    ax.set_ylim([y_center - new_y_range, y_center + new_y_range])
+    
+    canvas.draw()
+
+# Función para alternar la escala entre reales y radianes
+def alternar_escala():
+    global escala_radianes
+    escala_radianes = not escala_radianes
+    escala_boton.config(text="Radianes" if escala_radianes else "Reales")
+    graficar()
+
+# Actualizar el historial de funciones en una nueva ventana
+def mostrar_historial():
+    historial_window = Toplevel(ventana)
+    historial_window.title("Historial de Funciones")
+    historial_text = "\n".join(expresiones + [f"Error: {exp}" for exp in expresiones_erroneas])
+    label_historial = Label(historial_window, text=historial_text, justify=tk.LEFT, font=("Comic Sans MS", 12))
+    label_historial.pack(padx=10, pady=10)
+
+# Actualizar la lista de funciones en la sección correspondiente
+def actualizar_lista_funciones():
+    lista_funciones_texto.set("\n".join(expresiones))
+
+# Ocultar o mostrar la sección de botones
+def toggle_botones():
+    global botones_mostrados
+    if botones_mostrados:
+        frame_botones.grid_remove()
+        menu_bar.entryconfig(3, label="Mostrar Botones")
+    else:
+        frame_botones.grid()
+        menu_bar.entryconfig(3, label="Ocultar Botones")
+    botones_mostrados = not botones_mostrados
+
+# Función para agregar el símbolo "=" a la entrada actual
+def agregar_simbolo_igual():
+    entrada_texto.set(entrada_texto.get() + "=")
+
+# Configuración de la ventana principal
+ventana = tk.Tk()
+ventana.title("Calculadora")
+
+# Crear la barra de menú
+menu_bar = tk.Menu(ventana)
+ventana.config(menu=menu_bar)
+
+# Agregar el menú "Archivo"
+menu_archivo = tk.Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="Archivo", menu=menu_archivo)
+menu_archivo.add_command(label="Historial de Funciones", command=mostrar_historial)
+menu_archivo.add_command(label="Salir", command=ventana.quit)
+
+# Agregar el menú "Ver"
+menu_ver = tk.Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="Ver", menu=menu_ver)
+menu_ver.add_command(label="Mostrar Botones", command=toggle_botones)
+
+# Estado inicial de los botones
+botones_mostrados = True
+menu_bar.add_command(label="Ocultar Botones", command=toggle_botones)
+
+# Barra de entrada de funciones
+entrada_texto = tk.StringVar()
+entrada = tk.Entry(ventana, textvariable=entrada_texto, font=("Comic Sans MS", 16), bd=10, insertwidth=2, width=40, borderwidth=2)
+entrada.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+
+# Crear un marco para los botones a la izquierda
+frame_botones = tk.Frame(ventana)
+frame_botones.grid(row=1, column=0, rowspan=5, padx=10, pady=10, sticky="n")
+
+# Crear los botones de la calculadora
+botones = [
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    '+', '-', '*', '/', '^', 'sqrt', 'log',
+    'sin', 'cos', 'tan', 'x', 'y', '(', ')'
+]
+
+# Crear botones y añadirlos al marco
+for i, boton in enumerate(botones):
+    tk.Button(frame_botones, text=boton, font=("Comic Sans MS", 10), width=4, height=2, command=lambda b=boton: actualizar_entrada(b), borderwidth=2, relief="solid").grid(row=i//4, column=i%4, padx=5, pady=5)
+
+# Botón para agregar el símbolo "="
+tk.Button(frame_botones, text="=", font=("Comic Sans MS", 10), width=4, height=2, command=agregar_simbolo_igual, borderwidth=2, relief="solid").grid(row=len(botones)//4, column=3, padx=5, pady=5)
+
+# Botón para agregar la función
+tk.Button(frame_botones, text="Agregar Función", font=("Comic Sans MS", 10), width=20, height=2, command=agregar_funcion, borderwidth=2, relief="solid").grid(row=len(botones)//4, column=0, columnspan=2, padx=5, pady=5)
+
+# Botón para limpiar la entrada
+tk.Button(frame_botones, text="Limpiar", font=("Comic Sans MS", 10), width=20, height=2, command=limpiar, borderwidth=2, relief="solid").grid(row=len(botones)//4, column=2, columnspan=2, padx=5, pady=5)
+
+# Crear la figura y el eje para la gráfica
+figura, ax = plt.subplots(figsize=(5, 4), dpi=100)
+canvas = FigureCanvasTkAgg(figura, master=ventana)
+canvas_widget = canvas.get_tk_widget()
+canvas_widget.grid(row=1, column=1, rowspan=5, padx=10, pady=10)
+
+# Botón de alternar escala
+escala_boton = tk.Button(ventana, text="Reales", font=("Comic Sans MS", 10), command=alternar_escala, borderwidth=2, relief="solid")
+escala_boton.grid(row=6, column=1, padx=10, pady=10)
+
+# Botones de zoom
+tk.Button(ventana, text="z+", font=("Comic Sans MS", 10), width=4, height=2, command=zoom_in, borderwidth=2, relief="solid").grid(row=7, column=1, padx=5, pady=5)
+tk.Button(ventana, text="z-", font=("Comic Sans MS", 10), width=4, height=2, command=zoom_out, borderwidth=2, relief="solid").grid(row=8, column=1, padx=5, pady=5)
+
+# Etiqueta para mostrar la lista de funciones
+lista_funciones_texto = tk.StringVar()
+lista_funciones_texto.set("Funciones ingresadas:")
+lista_funciones = tk.Label(ventana, textvariable=lista_funciones_texto, font=("Comic Sans MS", 12), justify=tk.LEFT)
+lista_funciones.grid(row=9, column=1, padx=10, pady=10, sticky="n")
+
+# Ejecutar la ventana principal
+ventana.mainloop()
