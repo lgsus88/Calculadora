@@ -12,6 +12,40 @@ expresiones_erroneas = []
 # Colores predefinidos para las funciones
 colores = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
+# Estado del modo oscuro
+modo_oscuro = False
+
+# Función para alternar el modo oscuro
+def alternar_modo_oscuro():
+    global modo_oscuro
+    modo_oscuro = not modo_oscuro
+    
+    # Colores del modo oscuro
+    fondo_oscuro = "#2E2E2E"
+    texto_oscuro = "#FFFFFF"
+    
+    # Colores del modo claro
+    fondo_claro = "#FFFFFF"
+    texto_claro = "#000000"
+    
+    # Cambiar colores según el modo
+    if modo_oscuro:
+        ventana.config(bg=fondo_oscuro)
+        entrada.config(bg=fondo_oscuro, fg=texto_oscuro, insertbackground=texto_oscuro)
+        lista_funciones.config(bg=fondo_oscuro, fg=texto_oscuro)
+        escala_boton.config(bg=fondo_oscuro, fg=texto_oscuro, relief="solid")
+        frame_botones.config(bg=fondo_oscuro)
+        for widget in frame_botones.winfo_children():
+            widget.config(bg=fondo_oscuro, fg=texto_oscuro, relief="solid")
+    else:
+        ventana.config(bg=fondo_claro)
+        entrada.config(bg=fondo_claro, fg=texto_claro, insertbackground=texto_claro)
+        lista_funciones.config(bg=fondo_claro, fg=texto_claro)
+        escala_boton.config(bg=fondo_claro, fg=texto_claro, relief="solid")
+        frame_botones.config(bg=fondo_claro)
+        for widget in frame_botones.winfo_children():
+            widget.config(bg=fondo_claro, fg=texto_claro, relief="solid")
+
 # Estado de la escala en el plano cartesiano (Reales o Radianes)
 escala_radianes = False
 
@@ -200,6 +234,7 @@ menu_archivo.add_command(label="Salir", command=ventana.quit)
 menu_ver = tk.Menu(menu_bar, tearoff=0)
 menu_bar.add_cascade(label="Ver", menu=menu_ver)
 menu_ver.add_command(label="Mostrar Botones", command=toggle_botones)
+menu_ver.add_command(label="Modo Oscuro", command=alternar_modo_oscuro)
 
 # Estado inicial de los botones
 botones_mostrados = True
